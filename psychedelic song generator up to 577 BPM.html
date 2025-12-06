@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Psychedelic Synth Composer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(45deg, #1a0a2e, #16213e, #0f3460);
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: pulse 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes pulse {
+            0% { filter: brightness(100%); }
+            100% { filter: brightness(150%); }
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            font-weight: bold;
+        }
+        
+        .play-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+        
+        .stop-btn {
+            background: linear-gradient(45deg, #666, #333);
+            color: white;
+        }
+        
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+            height: 8px;
+            border-radius: 5px;
+            background: linear-gradient(45deg, #4ecdc4, #45b7d1);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+        
+        .info-panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .visualizer {
+            width: 100%;
+            height: 100px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin: 20px 0;
+            display: flex;
+            align-items: end;
+            justify-content: center;
+            gap: 2px;
+            padding: 10px;
+            overflow: hidden;
+        }
+        
+        .bar {
+            width: 4px;
+            background: linear-gradient(0deg, #ff6b6b, #4ecdc4);
+            border-radius: 2px 2px 0 0;
+            transition: height 0.1s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Psychedelic Synth Composer 🎵</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <button id="playBtn" class="play-btn">▶ Play</button>
+                <button id="stopBtn" class="stop-btn">⏹ Stop</button>
+            </div>
+            
+            <div class="control-group">
+                <div class="slider-container">
+                    <label for="bpmSlider">BPM:</label>
+                    <input type="range" id="bpmSlider" min="180" max="577" value="180">
+                    <span id="bpmValue">180</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="visualizer" id="visualizer"></div>
+        
+        <div class="info-panel">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            
+            <div class="stats">
+                <div class="stat">
+                    <div>Current Loop</div>
+                    <div id="currentLoop">1</div>
+                </div>
+                <div class="stat">
+                    <div>Total Loops</div>
+                    <div id="totalLoops">--</div>
+                </div>
+                <div class="stat">
+                    <div>Time Signature</div>
+                    <div>19/4</div>
+                </div>
+                <div class="stat">
+                    <div>Key</div>
+                    <div>B Minor</div>
+                </div>
+                <div class="stat">
+                    <div>Elapsed</div>
+                    <div id="elapsedTime">0:00</div>
+                </div>
+                <div class="stat">
+                    <div>Total Duration</div>
+                    <div id="totalDuration">--:--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class PsychedelicSynthComposer {
+            constructor() {
+                this.bpm = 180;
+                this.isPlaying = false;
+                this.currentLoop = 0;
+                this.totalLoops = 0;
+                this.startTime = 0;
+                this.duration = 0;
+                
+                // B minor chord progression (7 chords)
+                this.chordProgression = [
+                    ['B2', 'D3', 'F#3'], // Bm
+                    ['E2', 'G3', 'B3'],  // Em
+                    ['F#2', 'A3', 'C#4'], // F#m
+                    ['G2', 'B3', 'D4'],  // G
+                    ['A2', 'C#4', 'E4'], // A
+                    ['D3', 'F#3', 'A3'], // D
+                    ['F#2', 'A3', 'C#4'] // F#m
+                ];
+                
+                this.chordDurations = [4, 6, 3, 5, 7, 2, 8]; // beats per chord
+                this.melodyRefreshCount = 0;
+                
+                this.initializeAudio();
+                this.setupEventListeners();
+                this.createVisualizer();
+                this.calculateDuration();
+            }
+            
+            async initializeAudio() {
+                // Psychedelic synth for melody
+                this.melodySynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: {
+                        type: "fatsawtooth",
+                        modulationType: "square",
+                        modulationFrequency: 0.3
+                    },
+                    envelope: {
+                        attack: 0.1,
+                        decay: 0.3,
+                        sustain: 0.4,
+                        release: 1.2
+                    },
+                    filter: {
+                        frequency: 800,
+                        rolloff: -24
+                    }
+                }).toDestination();
+                
+                // Bass synth
+                this.bassSynth = new Tone.MonoSynth({
+                    oscillator: {
+                        type: "square"
+                    },
+                    envelope: {
+                        attack: 0.02,
+                        decay: 0.1,
+                        sustain: 0.8,
+                        release: 0.3
+                    },
+                    filter: {
+                        frequency: 200,
+                        rolloff: -12
+                    }
+                }).toDestination();
+                
+                // Drums
+                this.kick = new Tone.MembraneSynth({
+                    pitchDecay: 0.05,
+                    octaves: 10,
+                    oscillator: {
+                        type: "sine"
+                    },
+                    envelope: {
+                        attack: 0.001,
+                        decay: 0.4,
+                        sustain: 0.01,
+                        release: 1.4,
+                        attackCurve: "exponential"
+                    }
+                }).toDestination();
+                
+                this.snare = new Tone.NoiseSynth({
+                    noise: {
+                        type: "white"
+                    },
+                    envelope: {
+                        attack: 0.005,
+                        decay: 0.1,
+                        sustain: 0,
+                        release: 0.4
+                    }
+                }).toDestination();
+                
+                // Effects
+                const reverb = new Tone.Reverb({
+                    decay: 3,
+                    wet: 0.3
+                }).toDestination();
+                
+                const delay = new Tone.PingPongDelay({
+                    delayTime: "8n",
+                    feedback: 0.3,
+                    wet: 0.2
+                }).connect(reverb);
+                
+                this.melodySynth.connect(delay);
+                this.bassSynth.connect(reverb);
+            }
+            
+            calculateDuration() {
+                const beatsPerLoop = this.chordDurations.reduce((a, b) => a + b, 0);
+                const loopsFor5Minutes = Math.ceil((5 * 60 * this.bpm / 60) / beatsPerLoop);
+                const loopsFor8Minutes = Math.ceil((8 * 60 * this.bpm / 60) / beatsPerLoop);
+                
+                // Random duration between 5-8 minutes
+                this.totalLoops = Math.floor(Math.random() * (loopsFor8Minutes - loopsFor5Minutes + 1)) + loopsFor5Minutes;
+                this.duration = (this.totalLoops * beatsPerLoop * 60) / this.bpm;
+                
+                document.getElementById('totalLoops').textContent = this.totalLoops;
+                document.getElementById('totalDuration').textContent = this.formatTime(this.duration);
+            }
+            
+            setupEventListeners() {
+                document.getElementById('playBtn').addEventListener('click', () => this.play());
+                document.getElementById('stopBtn').addEventListener('click', () => this.stop());
+                
+                const bpmSlider = document.getElementById('bpmSlider');
+                bpmSlider.addEventListener('input', (e) => {
+                    this.bpm = parseInt(e.target.value);
+                    document.getElementById('bpmValue').textContent = this.bpm;
+                    Tone.Transport.bpm.value = this.bpm;
+                    this.calculateDuration();
+                });
+            }
+            
+            createVisualizer() {
+                const visualizer = document.getElementById('visualizer');
+                for (let i = 0; i < 100; i++) {
+                    const bar = document.createElement('div');
+                    bar.className = 'bar';
+                    bar.style.height = '0px';
+                    visualizer.appendChild(bar);
+                }
+            }
+            
+            updateVisualizer() {
+                const bars = document.querySelectorAll('.bar');
+                bars.forEach(bar => {
+                    const height = Math.random() * 80 + 5;
+                    bar.style.height = height + 'px';
+                });
+            }
+            
+            probability(chance) {
+                return Math.random() < chance;
+            }
+            
+            getRandomArpeggioNote(chord) {
+                const octaves = [2, 3, 4, 5]; // 3 octaves plus bass
+                const note = chord[Math.floor(Math.random() * chord.length)];
+                const octave = octaves[Math.floor(Math.random() * octaves.length)];
+                return note.replace(/\d/, '') + octave;
+            }
+            
+            scheduleChordProgression() {
+                let currentBeat = 0;
+                
+                for (let loop = 0; loop < this.totalLoops; loop++) {
+                    for (let chordIndex = 0; chordIndex < this.chordProgression.length; chordIndex++) {
+                        const chord = this.chordProgression[chordIndex];
+                        const duration = this.chordDurations[chordIndex];
+                        
+                        // Schedule melody for this chord
+                        this.scheduleMelody(chord, currentBeat, duration, loop);
+                        
+                        // Schedule bass
+                        this.scheduleBass(chord, currentBeat, duration);
+                        
+                        // Schedule drums
+                        this.scheduleDrums(currentBeat, duration);
+                        
+                        currentBeat += duration;
+                    }
+                    
+                    // Update loop counter
+                    Tone.Transport.schedule((time) => {
+                        this.currentLoop = loop + 1;
+                        document.getElementById('currentLoop').textContent = this.currentLoop;
+                    }, currentBeat * (60 / this.bpm));
+                }
+            }
+            
+            scheduleMelody(chord, startBeat, duration, loop) {
+                // Refresh melody every 3 loops
+                const melodyPattern = this.generateMelodyPattern(loop);
+                
+                for (let beat = 0; beat < duration; beat++) {
+                    const absoluteBeat = startBeat + beat;
+                    const measureBeat = (beat % 19) + 1;
+                    
+                    // Strong beats (1, 5, 9, 13, 17)
+                    const isStrongBeat = [1, 5, 9, 13, 17].includes(measureBeat);
+                    
+                    if (isStrongBeat) {
+                        // 100% chance on strong beats
+                        const notes = this.generateSimultaneousTones(chord, this.probability(0.2) ? Math.floor(Math.random() * 3) + 1 : 1);
+                        this.scheduleNotes(notes, absoluteBeat);
+                    } else {
+                        // 80% chance on other beats
+                        if (this.probability(0.8)) {
+                            const notes = this.generateSimultaneousTones(chord, 1);
+                            this.scheduleNotes(notes, absoluteBeat);
+                        }
+                    }
+                    
+                    // 16th note variations (20% chance)
+                    if (this.probability(0.2)) {
+                        const notes = this.generateSimultaneousTones(chord, 1);
+                        this.scheduleNotes(notes, absoluteBeat - 0.25); // 16th before
+                    }
+                    
+                    if (this.probability(0.2)) {
+                        const notes = this.generateSimultaneousTones(chord, 1);
+                        this.scheduleNotes(notes, absoluteBeat + 0.25); // 16th after
+                    }
+                    
+                    // Offbeat hits (20% chance)
+                    if (this.probability(0.2)) {
+                        const notes = this.generateSimultaneousTones(chord, 1);
+                        this.scheduleNotes(notes, absoluteBeat + 0.5);
+                    }
+                }
+            }
+            
+            generateMelodyPattern(loop) {
+                // Generate new pattern every 3 loops
+                const patternIndex = Math.floor(loop / 3);
+                return patternIndex;
+            }
+            
+            generateSimultaneousTones(chord, count) {
+                const notes = [];
+                for (let i = 0; i < count; i++) {
+                    notes.push(this.getRandomArpeggioNote(chord));
+                }
+                return [...new Set(notes)]; // Remove duplicates
+            }
+            
+            scheduleNotes(notes, beat) {
+                const time = beat * (60 / this.bpm);
+                Tone.Transport.schedule((scheduleTime) => {
+                    notes.forEach(note => {
+                        this.melodySynth.triggerAttackRelease(note, "8n", scheduleTime);
+                    });
+                    this.updateVisualizer();
+                }, time);
+            }
+            
+            scheduleBass(chord, startBeat, duration) {
+                for (let beat = 0; beat < duration; beat++) {
+                    const absoluteBeat = startBeat + beat;
+                    const measureBeat = (beat % 19) + 1;
+                    const isStrongBeat = [1, 5, 9, 13, 17].includes(measureBeat);
+                    
+                    if (isStrongBeat || this.probability(0.3)) {
+                        const bassNote = chord[0].replace(/\d/, '') + '0'; // Bass octave
+                        const time = absoluteBeat * (60 / this.bpm);
+                        
+                        Tone.Transport.schedule((scheduleTime) => {
+                            this.bassSynth.triggerAttackRelease(bassNote, "4n", scheduleTime);
+                        }, time);
+                    }
+                }
+            }
+            
+            scheduleDrums(startBeat, duration) {
+                for (let beat = 0; beat < duration; beat++) {
+                    const absoluteBeat = startBeat + beat;
+                    const measureBeat = (beat % 19) + 1;
+                    const isStrongBeat = [1, 5, 9, 13, 17].includes(measureBeat);
+                    
+                    // Kick drum
+                    if (isStrongBeat && this.probability(0.95)) {
+                        this.scheduleKick(absoluteBeat);
+                    } else if (this.probability(0.8)) {
+                        this.scheduleKick(absoluteBeat);
+                    }
+                    
+                    // Kick variations
+                    if (this.probability(0.1)) {
+                        this.scheduleKick(absoluteBeat - 0.25);
+                    }
+                    if (this.probability(0.2)) {
+                        this.scheduleKick(absoluteBeat + 0.25);
+                    }
+                    if (this.probability(0.2)) {
+                        this.scheduleKick(absoluteBeat + 0.5);
+                    }
+                    
+                    // Snare drum
+                    if (this.probability(0.3)) {
+                        this.scheduleSnare(absoluteBeat);
+                    }
+                    if (isStrongBeat && this.probability(0.1)) {
+                        this.scheduleSnare(absoluteBeat);
+                    }
+                    if (this.probability(0.1)) {
+                        this.scheduleSnare(absoluteBeat + 0.25);
+                    }
+                    if (this.probability(0.2)) {
+                        this.scheduleSnare(absoluteBeat + 0.5);
+                    }
+                }
+            }
+            
+            scheduleKick(beat) {
+                const time = beat * (60 / this.bpm);
+                Tone.Transport.schedule((scheduleTime) => {
+                    this.kick.triggerAttackRelease("C1", "8n", scheduleTime);
+                }, time);
+            }
+            
+            scheduleSnare(beat) {
+                const time = beat * (60 / this.bpm);
+                Tone.Transport.schedule((scheduleTime) => {
+                    this.snare.triggerAttackRelease("8n", scheduleTime);
+                }, time);
+            }
+            
+            updateProgress() {
+                if (!this.isPlaying) return;
+                
+                const elapsed = Tone.now() - this.startTime;
+                const progress = (elapsed / this.duration) * 100;
+                
+                document.getElementById('progressFill').style.width = Math.min(progress, 100) + '%';
+                document.getElementById('elapsedTime').textContent = this.formatTime(elapsed);
+                
+                if (elapsed >= this.duration) {
+                    this.stop();
+                }
+            }
+            
+            formatTime(seconds) {
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+            
+            async play() {
+                if (this.isPlaying) return;
+                
+                await Tone.start();
+                
+                this.isPlaying = true;
+                this.startTime = Tone.now();
+                this.currentLoop = 0;
+                
+                Tone.Transport.bpm.value = this.bpm;
+                Tone.Transport.timeSignature = [19, 4];
+                
+                this.scheduleChordProgression();
+                
+                Tone.Transport.start();
+                
+                document.getElementById('playBtn').textContent = '⏸ Pause';
+                document.getElementById('currentLoop').textContent = '1';
+                
+                // Progress update interval
+                this.progressInterval = setInterval(() => this.updateProgress(), 100);
+            }
+            
+            stop() {
+                if (!this.isPlaying) return;
+                
+                this.isPlaying = false;
+                Tone.Transport.stop();
+                Tone.Transport.cancel();
+                
+                if (this.progressInterval) {
+                    clearInterval(this.progressInterval);
+                }
+                
+                document.getElementById('playBtn').textContent = '▶ Play';
+                document.getElementById('progressFill').style.width = '0%';
+                document.getElementById('elapsedTime').textContent = '0:00';
+                document.getElementById('currentLoop').textContent = '1';
+                
+                // Reset visualizer
+                document.querySelectorAll('.bar').forEach(bar => {
+                    bar.style.height = '0px';
+                });
+            }
+        }
+        
+        // Initialize the composer when page loads
+        window.addEventListener('load', () => {
+            new PsychedelicSynthComposer();
+        });
+    </script>
+</body>
+</html>
